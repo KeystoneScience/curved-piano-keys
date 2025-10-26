@@ -8,10 +8,6 @@
 </p>
 
 <p align="center">
-  Made with ❤️ by <a href="https://keystonescience.com" target="_blank" rel="noopener noreferrer"><strong>Nate Stone</strong></a>
-</p>
-
-<p align="center">
   <img src="./assets/curved-keys-hero.png" alt="Curved piano keyboard hero" width="1000" />
 </p>
 
