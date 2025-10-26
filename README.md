@@ -22,6 +22,7 @@
 - Optional viewBox fitting so the SVG crops itself to the rendered keys.
 - Ships Bézier path presets to help you prototype layouts quickly.
 - Interactive playground with a pen-style path builder, live prop controls, and a one-click copyable component snippet.
+- Responsive density presets that auto-select smart key counts from phones to ultrawide displays.
 
 ## Installation
 
@@ -40,7 +41,6 @@ export function Hero() {
   return (
     <CurvedPianoKeys
       d={PIANO_PATH_PRESETS[0].d}
-      numWhiteKeys={52}
       thickness={84}
       startOn="A"
       showPath
@@ -54,7 +54,8 @@ export function Hero() {
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `d` | `string` | **required** | SVG path data to follow (e.g. `"M 40 240 C ..."`). |
-| `numWhiteKeys` | `number` | `52` | Total white keys rendered along the path. |
+| `numWhiteKeys` | `number` | `52` | Total white keys rendered along the path. Ignored when `whiteKeyDensity` is set. |
+| `whiteKeyDensity` | `'auto' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'auto'` | Responsive presets that pick the white-key count from tuned breakpoints (ignored when `numWhiteKeys` is supplied). |
 | `thickness` | `number` | `80` | Ribbon thickness in px measured normal to the path. |
 | `whiteKeySpan` | `number` | `undefined` | Override the calculated span if you need fixed key widths. |
 | `startOn` | `'A' \\| 'C'` | `'A'` | Controls the black-key cadence, matching a real keyboard (`'A'`) or visually centred (`'C'`). |
@@ -66,6 +67,8 @@ export function Hero() {
 | `className` | `string` | `undefined` | Pass through a class for sizing or theming the `<svg>`. |
 
 All props are optional except `d`. Full JSDoc lives in [`src/CurvedPianoKeys.tsx`](src/CurvedPianoKeys.tsx).
+
+> **Tip:** Supply `numWhiteKeys` for an exact key count, or let the defaults pick a responsive density via `whiteKeyDensity="auto"`.
 
 > The geometry is calculated with DOM APIs, so the component must render in a browser environment (e.g. a Next.js Client Component).
 
@@ -79,7 +82,7 @@ export function HeroBanner() {
     <CurvedPianoKeys
       d={ribbon}
       thickness={96}
-      numWhiteKeys={60}
+      whiteKeyDensity="lg"
       startOn="C"
       orientation={-1}
       blackWidthRatio={0.58}
@@ -101,7 +104,7 @@ Each preset includes `id`, `name`, `description`, and the `d` attribute for quic
 
 ## Interactive Playground
 
-The repo ships with a Vite-powered playground featuring live prop controls, a smooth pen-style path builder, and a ready-to-copy component snippet. Run it locally:
+The repo ships with a Vite-powered playground featuring live prop controls, a smooth pen-style path builder, responsive key-density presets, and a ready-to-copy component snippet. Run it locally:
 
 ```bash
 npm install

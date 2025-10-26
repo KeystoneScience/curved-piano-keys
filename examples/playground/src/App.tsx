@@ -1,6 +1,7 @@
 import {
   FormEvent,
   PointerEvent,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -13,20 +14,68 @@ type PathPresetId = (typeof PIANO_PATH_PRESETS)[number]['id'];
 const WHITE_KEY_MIN = 12;
 const WHITE_KEY_INCREMENT = 12;
 
+type ResponsiveDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+type DensitySetting = ResponsiveDensity | 'auto';
+
+const WHITE_KEY_DENSITY_VALUES: Record<ResponsiveDensity, number> = {
+  xs: 28,
+  sm: 36,
+  md: 44,
+  lg: 52,
+  xl: 60,
+};
+
+const DENSITY_BREAKPOINTS: Array<{ maxWidth: number; density: ResponsiveDensity }> = [
+  { maxWidth: 520, density: 'xs' },
+  { maxWidth: 768, density: 'sm' },
+  { maxWidth: 1024, density: 'md' },
+  { maxWidth: 1366, density: 'lg' },
+  { maxWidth: Number.POSITIVE_INFINITY, density: 'xl' },
+];
+
+const DENSITY_LABELS: Record<DensitySetting, string> = {
+  auto: 'Responsive',
+  xs: 'XS',
+  sm: 'SM',
+  md: 'MD',
+  lg: 'LG',
+  xl: 'XL',
+};
+
+const DEFAULT_PREVIEW_WIDTH = 1024;
+
+function densityForWidth(width: number): ResponsiveDensity {
+  const resolvedWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_PREVIEW_WIDTH;
+  const match = DENSITY_BREAKPOINTS.find((entry) => resolvedWidth <= entry.maxWidth);
+  return match?.density ?? 'xl';
+}
+
 export function App() {
   const [presetId, setPresetId] = useState<PathPresetId>(PIANO_PATH_PRESETS[0].id);
   const [thickness, setThickness] = useState(84);
   const [numWhiteKeys, setNumWhiteKeys] = useState(52);
-  const [whiteKeySliderMax, setWhiteKeySliderMax] = useState(52);
+  const [whiteKeySliderMax, setWhiteKeySliderMax] = useState(60);
   const [blackWidthRatio, setBlackWidthRatio] = useState(0.6);
   const [blackDepth, setBlackDepth] = useState(0.62);
   const [startOn, setStartOn] = useState<'A' | 'C'>('A');
   const [showPath, setShowPath] = useState(false);
   const [orientation, setOrientation] = useState<1 | -1>(1);
+  const [useManualKeys, setUseManualKeys] = useState(false);
+  const [densitySetting, setDensitySetting] = useState<DensitySetting>('auto');
+  const [autoWhiteKeys, setAutoWhiteKeys] = useState(() => WHITE_KEY_DENSITY_VALUES['md']);
+  const densityRef = useRef<ResponsiveDensity>('md');
+  const [activeDensity, setActiveDensity] = useState<ResponsiveDensity>('md');
+  const previewRef = useRef<HTMLDivElement | null>(null);
   const [pathSource, setPathSource] = useState<'preset' | 'custom'>('preset');
   const [customPath, setCustomPath] = useState<string>('');
   const [customError, setCustomError] = useState<string | null>(null);
   const [copySnippetState, setCopySnippetState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  const densityOptions: DensitySetting[] = ['auto', 'xs', 'sm', 'md', 'lg', 'xl'];
+
+  const effectiveWhiteKeys = useManualKeys ? numWhiteKeys : autoWhiteKeys;
+  const computedSliderMax = useManualKeys ? whiteKeySliderMax : Math.max(whiteKeySliderMax, effectiveWhiteKeys);
+  const whiteKeySliderValue = useManualKeys ? numWhiteKeys : effectiveWhiteKeys;
 
   const selectedPreset = useMemo(
     () => PIANO_PATH_PRESETS.find((preset) => preset.id === presetId) ?? PIANO_PATH_PRESETS[0],
@@ -37,27 +86,97 @@ export function App() {
 
   const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
+  useEffect(() => {
+    if (useManualKeys) {
+      return;
+    }
+
+    if (densitySetting !== 'auto') {
+      densityRef.current = densitySetting;
+      setActiveDensity(densitySetting);
+      setAutoWhiteKeys(WHITE_KEY_DENSITY_VALUES[densitySetting]);
+      return;
+    }
+
+    const updateFromWidth = (width?: number) => {
+      const measuredWidth =
+        width ??
+        previewRef.current?.getBoundingClientRect().width ??
+        window.innerWidth ??
+        DEFAULT_PREVIEW_WIDTH;
+      const density = densityForWidth(measuredWidth);
+      densityRef.current = density;
+      setActiveDensity(density);
+      const nextKeys = WHITE_KEY_DENSITY_VALUES[density];
+      setAutoWhiteKeys((previous) => (previous === nextKeys ? previous : nextKeys));
+    };
+
+    updateFromWidth();
+
+    const handleResize = () => updateFromWidth();
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    let observer: ResizeObserver | null = null;
+    if (previewRef.current && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const width = entry.contentRect?.width ?? entry.target.getBoundingClientRect().width;
+          if (Number.isFinite(width)) {
+            updateFromWidth(width);
+          }
+        }
+      });
+      observer.observe(previewRef.current);
+    }
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [useManualKeys, densitySetting]);
+
+  useEffect(() => {
+    if (!useManualKeys) {
+      setWhiteKeySliderMax((previous) => (autoWhiteKeys > previous ? autoWhiteKeys : previous));
+    }
+  }, [autoWhiteKeys, useManualKeys]);
+
   const componentSnippet = useMemo(() => {
     const escapeDoubleQuotes = (value: string) => value.replace(/"/g, '\\"');
-    return [
+    const lines: string[] = [
       `import { CurvedPianoKeys } from "curved-piano-keys";`,
       '',
       '<CurvedPianoKeys',
       `  d="${escapeDoubleQuotes(currentPath)}"`,
       `  thickness={${thickness}}`,
-      `  numWhiteKeys={${numWhiteKeys}}`,
+    ];
+
+    if (useManualKeys) {
+      lines.push(`  numWhiteKeys={${numWhiteKeys}}`);
+    } else {
+      lines.push(`  whiteKeyDensity="${densitySetting}"`);
+    }
+
+    lines.push(
       `  startOn="${startOn}"`,
       `  blackWidthRatio={${blackWidthRatio}}`,
       `  blackDepth={${blackDepth}}`,
       `  orientation={${orientation}}`,
-      `  showPath={${showPath ? 'true' : 'false'}}`,
-      '  className="piano"',
-      '/>',
-    ].join('\n');
+    );
+
+    if (showPath) {
+      lines.push('  showPath');
+    }
+
+    lines.push('  className="piano"', '/>');
+
+    return lines.join('\n');
   }, [
     currentPath,
     thickness,
     numWhiteKeys,
+    densitySetting,
+    useManualKeys,
     startOn,
     blackWidthRatio,
     blackDepth,
@@ -125,14 +244,14 @@ export function App() {
               <h2>{selectedPreset.name}</h2>
               <p>{selectedPreset.description}</p>
             </div>
-            <span className="badge">{numWhiteKeys} white keys</span>
+            <span className="badge">{effectiveWhiteKeys} white keys</span>
           </div>
 
-          <div className="preview-canvas">
+          <div className="preview-canvas" ref={previewRef}>
             <CurvedPianoKeys
               d={currentPath}
               thickness={thickness}
-              numWhiteKeys={numWhiteKeys}
+              {...(useManualKeys ? { numWhiteKeys } : { whiteKeyDensity: densitySetting })}
               startOn={startOn}
               blackWidthRatio={blackWidthRatio}
               blackDepth={blackDepth}
@@ -193,20 +312,76 @@ export function App() {
             />
           </label>
 
+          <fieldset className="control-group">
+            <legend>Key fill</legend>
+            <div className="segmented">
+              <button
+                type="button"
+                className={useManualKeys ? 'segment-button' : 'segment-button active'}
+                onClick={() => setUseManualKeys(false)}
+              >
+                Auto
+              </button>
+              <button
+                type="button"
+                className={useManualKeys ? 'segment-button active' : 'segment-button'}
+                onClick={() => {
+                  setUseManualKeys(true);
+                  setNumWhiteKeys(autoWhiteKeys);
+                  setWhiteKeySliderMax((previous) =>
+                    autoWhiteKeys > previous ? autoWhiteKeys : previous,
+                  );
+                }}
+              >
+                Manual
+              </button>
+            </div>
+
+            {!useManualKeys ? (
+              <>
+                <div className="density-row" role="radiogroup" aria-label="Key density">
+                  {densityOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={
+                        option === densitySetting ? 'density-chip active' : 'density-chip'
+                      }
+                      onClick={() => setDensitySetting(option)}
+                    >
+                      {DENSITY_LABELS[option]}
+                    </button>
+                  ))}
+                </div>
+                <p className="control-hint">
+                  {densitySetting === 'auto'
+                    ? `Responsive: ${activeDensity.toUpperCase()} density (${autoWhiteKeys} white keys)`
+                    : `${DENSITY_LABELS[densitySetting]} density (${autoWhiteKeys} white keys)`}
+                </p>
+              </>
+            ) : (
+              <p className="control-hint">Use the slider below to dial in an exact key count.</p>
+            )}
+          </fieldset>
+
           <label className="control" htmlFor="white-keys">
-            <span>White keys ({numWhiteKeys})</span>
+            <span>White keys ({effectiveWhiteKeys})</span>
             <input
               id="white-keys"
               type="range"
               min={WHITE_KEY_MIN}
-              max={whiteKeySliderMax}
+              max={computedSliderMax}
               step={1}
-              value={numWhiteKeys}
+              value={whiteKeySliderValue}
               onChange={(event) => {
+                if (!useManualKeys) {
+                  return;
+                }
                 const next = Number(event.target.value);
                 setNumWhiteKeys(next);
                 setWhiteKeySliderMax((previous) => (next >= previous ? previous + WHITE_KEY_INCREMENT : previous));
               }}
+              disabled={!useManualKeys}
             />
           </label>
 
