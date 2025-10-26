@@ -1,6 +1,6 @@
 # Piano Keys React Component
 
-`curved-piano-keys` renders a full piano keyboard that hugs any SVG path. It is a lightweight React component extracted from Nate Stone's portfolio site so the curved keyboard can be reused in other projects.
+`curved-piano-keys` renders a full piano keyboard that hugs any SVG path. It started as a portfolio experiment and is now packaged for anyone to drop into their own projects.
 
 ## Features
 
