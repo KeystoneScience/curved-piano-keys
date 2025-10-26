@@ -26,6 +26,7 @@ export function App() {
   const [pathSource, setPathSource] = useState<'preset' | 'custom'>('preset');
   const [customPath, setCustomPath] = useState<string>('');
   const [customError, setCustomError] = useState<string | null>(null);
+  const [copySnippetState, setCopySnippetState] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const selectedPreset = useMemo(
     () => PIANO_PATH_PRESETS.find((preset) => preset.id === presetId) ?? PIANO_PATH_PRESETS[0],
@@ -35,6 +36,34 @@ export function App() {
   const currentPath = pathSource === 'custom' && customPath.trim() ? customPath : selectedPreset.d;
 
   const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
+  const componentSnippet = useMemo(() => {
+    const escapeDoubleQuotes = (value: string) => value.replace(/"/g, '\\"');
+    return [
+      `import { CurvedPianoKeys } from "curved-piano-keys";`,
+      '',
+      '<CurvedPianoKeys',
+      `  d="${escapeDoubleQuotes(currentPath)}"`,
+      `  thickness={${thickness}}`,
+      `  numWhiteKeys={${numWhiteKeys}}`,
+      `  startOn="${startOn}"`,
+      `  blackWidthRatio={${blackWidthRatio}}`,
+      `  blackDepth={${blackDepth}}`,
+      `  orientation={${orientation}}`,
+      `  showPath={${showPath ? 'true' : 'false'}}`,
+      '  className="piano"',
+      '/>',
+    ].join('\n');
+  }, [
+    currentPath,
+    thickness,
+    numWhiteKeys,
+    startOn,
+    blackWidthRatio,
+    blackDepth,
+    orientation,
+    showPath,
+  ]);
 
   const handleCustomPathSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,6 +83,18 @@ export function App() {
   const resetToPreset = () => {
     setPathSource('preset');
     setCustomError(null);
+  };
+
+  const handleCopySnippet = async () => {
+    try {
+      await navigator.clipboard.writeText(componentSnippet);
+      setCopySnippetState('copied');
+      setTimeout(() => setCopySnippetState('idle'), 2200);
+    } catch (error) {
+      console.warn('Failed to copy snippet', error);
+      setCopySnippetState('error');
+      setTimeout(() => setCopySnippetState('idle'), 2200);
+    }
   };
 
   return (
@@ -99,6 +140,18 @@ export function App() {
               orientation={orientation}
               className="piano"
             />
+          </div>
+
+          <div className="code-preview">
+            <div className="code-preview-header">
+              <h3>Copy the component</h3>
+              <button type="button" className="ghost-button" onClick={handleCopySnippet}>
+                {copySnippetState === 'copied' ? 'Copied!' : copySnippetState === 'error' ? 'Copy failed' : 'Copy'}
+              </button>
+            </div>
+            <pre>
+              <code>{componentSnippet}</code>
+            </pre>
           </div>
         </section>
 
