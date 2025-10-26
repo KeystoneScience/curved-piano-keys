@@ -1,5 +1,5 @@
 {
-  "name": "@nate-stone/piano-keys",
+  "name": "curved-piano-keys",
   "version": "0.1.0",
   "description": "Curved piano keyboard React component that renders keys along any SVG path.",
   "license": "MIT",
@@ -29,7 +29,10 @@
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo:dev": "npm run dev --prefix examples/playground",
+    "demo:build": "npm run build --prefix examples/playground",
+    "demo:preview": "npm run preview --prefix examples/playground"
   },
   "peerDependencies": {
     "react": "^18.2.0"

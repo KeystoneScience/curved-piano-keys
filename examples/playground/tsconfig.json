@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "curved-piano-keys": ["../../src"],
+      "curved-piano-keys/path-presets": ["../../src/pathPresets"]
+    }
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../tsconfig.json"
+    }
+  ]
+}

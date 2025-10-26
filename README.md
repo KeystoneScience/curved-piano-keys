@@ -1,6 +1,6 @@
 # Piano Keys React Component
 
-`@nate-stone/piano-keys` renders a full piano keyboard that hugs any SVG path. It is a lightweight React component extracted from Nate Stone's portfolio site so the curved keyboard can be reused in other projects.
+`curved-piano-keys` renders a full piano keyboard that hugs any SVG path. It is a lightweight React component extracted from Nate Stone's portfolio site so the curved keyboard can be reused in other projects.
 
 ## Features
 
@@ -12,7 +12,7 @@
 ## Installation
 
 ```bash
-npm install @nate-stone/piano-keys
+npm install curved-piano-keys
 ```
 
 > The package expects `react@^18` as a peer dependency.
@@ -20,7 +20,7 @@ npm install @nate-stone/piano-keys
 ## Usage
 
 ```tsx
-import { CurvedPianoKeys, PIANO_PATH_PRESETS } from "@nate-stone/piano-keys";
+import { CurvedPianoKeys, PIANO_PATH_PRESETS } from "curved-piano-keys";
 
 export function Hero() {
   return (
@@ -52,15 +52,33 @@ All props are optional except `d`. Full doc comments live in `src/CurvedPianoKey
 ### Path presets
 
 ```ts
-import { PIANO_PATH_PRESETS } from "@nate-stone/piano-keys/path-presets";
+import { PIANO_PATH_PRESETS } from "curved-piano-keys/path-presets";
 ```
 
 Each preset includes `id`, `name`, `description`, and the `d` attribute for quick demos.
+
+## Interactive Playground
+
+The repo ships with a Vite-powered playground that mirrors the props live in the browser. Run it locally:
+
+```bash
+npm install
+npm install --prefix examples/playground
+npm run demo:dev
+```
+
+When deployed to GitHub Pages via the included workflow, it will be available at:
+
+```
+https://keystonescience.github.io/curved-piano-keys/
+```
 
 ## Development
 
 ```bash
 npm install
+npm run build          # build the library
+npm run demo:build     # builds the playground into examples/playground/dist
 npm run build
 ```
 
