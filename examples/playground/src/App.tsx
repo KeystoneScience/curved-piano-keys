@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 
 import { CurvedPianoKeys, PIANO_PATH_PRESETS } from 'curved-piano-keys';
 
@@ -17,13 +17,38 @@ export function App() {
   const [startOn, setStartOn] = useState<'A' | 'C'>('A');
   const [showPath, setShowPath] = useState(false);
   const [orientation, setOrientation] = useState<1 | -1>(1);
+  const [pathSource, setPathSource] = useState<'preset' | 'custom'>('preset');
+  const [customPath, setCustomPath] = useState<string>('');
+  const [customError, setCustomError] = useState<string | null>(null);
 
   const selectedPreset = useMemo(
     () => PIANO_PATH_PRESETS.find((preset) => preset.id === presetId) ?? PIANO_PATH_PRESETS[0],
     [presetId],
   );
 
+  const currentPath = pathSource === 'custom' && customPath.trim() ? customPath : selectedPreset.d;
+
   const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
+  const handleCustomPathSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = customPath.trim();
+    if (!value) {
+      setCustomError('Please paste SVG path commands (e.g. starting with M).');
+      return;
+    }
+    if (!/^[a-zA-Z]/.test(value)) {
+      setCustomError('Path data should begin with a command letter such as M, C, or L.');
+      return;
+    }
+    setCustomError(null);
+    setPathSource('custom');
+  };
+
+  const resetToPreset = () => {
+    setPathSource('preset');
+    setCustomError(null);
+  };
 
   return (
     <div className="page">
@@ -58,7 +83,7 @@ export function App() {
 
           <div className="preview-canvas">
             <CurvedPianoKeys
-              d={selectedPreset.d}
+              d={currentPath}
               thickness={thickness}
               numWhiteKeys={numWhiteKeys}
               startOn={startOn}
@@ -82,7 +107,11 @@ export function App() {
             <select
               id="preset"
               value={presetId}
-              onChange={(event) => setPresetId(event.target.value as PathPresetId)}
+              onChange={(event) => {
+                setPresetId(event.target.value as PathPresetId);
+                setPathSource('preset');
+                setCustomError(null);
+              }}
             >
               {PIANO_PATH_PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>
@@ -192,7 +221,60 @@ export function App() {
       </main>
 
       <footer className="footer">
-        <p>
+        <section className="workshop" aria-labelledby="workshop-heading">
+          <div className="workshop-copy">
+            <p className="eyebrow">Path Workshop</p>
+            <h2 id="workshop-heading">Sketch a new curve or paste your own</h2>
+            <p>
+              Need a fresh ribbon? Plot control points in a visual editor like{' '}
+              <a href="https://armadore.com/svg-path-editor/" target="_blank" rel="noreferrer">
+                SVG Path Editor
+              </a>{' '}
+              for quick drag-and-drop handles or try the{' '}
+              <a href="https://easycodetools.com/tool/svg-path-builder" target="_blank" rel="noreferrer">
+                SVG Path Builder
+              </a>{' '}
+              for guided step-by-step curves. Both tools show live coordinates so you can learn how{' '}
+              <code>M</code>, <code>L</code>, and <code>C</code> commands shape a path. Paste the generated{' '}
+              <code>d</code> attribute below to see these keys flow along your custom geometry instantly.
+            </p>
+            <p>
+              Curious what those command letters do? The{' '}
+              <a
+                href="https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths"
+                target="_blank"
+                rel="noreferrer"
+              >
+                SVG path primer
+              </a>{' '}
+              breaks down move, line, and Bézier syntax with simple diagrams so you can tweak curves with confidence.
+            </p>
+          </div>
+
+          <form className="custom-path-form" onSubmit={handleCustomPathSubmit}>
+            <label htmlFor="custom-path" className="custom-path-label">
+              Paste SVG path data
+            </label>
+            <textarea
+              id="custom-path"
+              name="custom-path"
+              value={customPath}
+              placeholder="Example: M 20 240 C 240 120 420 360 640 220..."
+              onChange={(event) => setCustomPath(event.target.value)}
+              rows={4}
+            />
+            {customError ? <p className="error">{customError}</p> : null}
+            <div className="custom-path-actions">
+              <button type="submit" className="cta secondary">
+                Use this path
+              </button>
+              <button type="button" className="ghost-button" onClick={resetToPreset} disabled={pathSource !== 'custom'}>
+                Return to preset
+              </button>
+            </div>
+          </form>
+        </section>
+        <p className="footnote">
           Built with <code>curved-piano-keys</code>. Resize the browser to watch the SVG stay crisp thanks to{' '}
           <code>vector-effect="non-scaling-stroke"</code>.
         </p>
