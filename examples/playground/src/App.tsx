@@ -1,4 +1,10 @@
-import { FormEvent, useMemo, useState } from 'react';
+import {
+  FormEvent,
+  PointerEvent,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { CurvedPianoKeys, PIANO_PATH_PRESETS } from 'curved-piano-keys';
 
@@ -251,6 +257,17 @@ export function App() {
             </p>
           </div>
 
+          <PathBuilder
+            onApply={(value, meta) => {
+              setCustomPath(value);
+              setPathSource('custom');
+              setCustomError(null);
+              if (meta === 'builder') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+          />
+
           <form className="custom-path-form" onSubmit={handleCustomPathSubmit}>
             <label htmlFor="custom-path" className="custom-path-label">
               Paste SVG path data
@@ -279,6 +296,228 @@ export function App() {
           <code>vector-effect="non-scaling-stroke"</code>.
         </p>
       </footer>
+    </div>
+  );
+}
+
+type PathBuilderProps = {
+  onApply: (path: string, meta: 'builder' | 'form') => void;
+};
+
+type BuilderPoint = {
+  id: number;
+  x: number;
+  y: number;
+};
+
+const VIEWBOX_WIDTH = 1200;
+const VIEWBOX_HEIGHT = 400;
+
+function PathBuilder({ onApply }: PathBuilderProps) {
+  const [points, setPoints] = useState<BuilderPoint[]>([
+    { id: 1, x: 40, y: 240 },
+    { id: 2, x: 600, y: 160 },
+    { id: 3, x: 1100, y: 260 },
+  ]);
+  const [dragging, setDragging] = useState<{
+    id: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const pathD = useMemo(() => {
+    if (points.length === 0) {
+      return '';
+    }
+    const [first, ...rest] = points;
+    return rest.reduce(
+      (acc, point) => `${acc} L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`,
+      `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`,
+    );
+  }, [points]);
+
+  const handleSvgClick = (event: PointerEvent<SVGSVGElement>) => {
+    if (dragging) {
+      return;
+    }
+    const svg = svgRef.current;
+    if (!svg) {
+      return;
+    }
+    const rect = svg.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const y = ((event.clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+    const nextPoint: BuilderPoint = {
+      id: Date.now(),
+      x: Number(x.toFixed(1)),
+      y: Number(y.toFixed(1)),
+    };
+    setPoints((previous) => [...previous, nextPoint]);
+  };
+
+  const handlePointerDown = (point: BuilderPoint, event: PointerEvent<SVGCircleElement>) => {
+    event.stopPropagation();
+    const svg = svgRef.current;
+    if (!svg) {
+      return;
+    }
+    const rect = svg.getBoundingClientRect();
+    const pointerX = ((event.clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const pointerY = ((event.clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+    setDragging({
+      id: point.id,
+      offsetX: point.x - pointerX,
+      offsetY: point.y - pointerY,
+    });
+    svg.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (!dragging) {
+      return;
+    }
+    const svg = svgRef.current;
+    if (!svg) {
+      return;
+    }
+    const rect = svg.getBoundingClientRect();
+    const pointerX = ((event.clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const pointerY = ((event.clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+    const nextX = Math.max(0, Math.min(VIEWBOX_WIDTH, pointerX + dragging.offsetX));
+    const nextY = Math.max(0, Math.min(VIEWBOX_HEIGHT, pointerY + dragging.offsetY));
+    setPoints((previous) =>
+      previous.map((point) => (point.id === dragging.id ? { ...point, x: Number(nextX.toFixed(1)), y: Number(nextY.toFixed(1)) } : point)),
+    );
+  };
+
+  const handlePointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    if (dragging) {
+      const svg = svgRef.current;
+      if (svg) {
+        svg.releasePointerCapture(event.pointerId);
+      }
+    }
+    setDragging(null);
+  };
+
+  const handleUndo = () => {
+    setPoints((previous) => previous.slice(0, Math.max(0, previous.length - 1)));
+  };
+
+  const handleClear = () => {
+    setPoints([]);
+  };
+
+  const handleApply = () => {
+    if (!pathD) {
+      return;
+    }
+    onApply(pathD, 'builder');
+  };
+
+  const handleCopy = async () => {
+    if (!pathD) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(pathD);
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 2500);
+    } catch (error) {
+      console.warn('Clipboard copy failed', error);
+      setCopyState('error');
+      setTimeout(() => setCopyState('idle'), 2500);
+    }
+  };
+
+  return (
+    <div className="builder">
+      <div>
+        <h3 className="builder-heading">Quick path builder</h3>
+        <p className="builder-blurb">
+          Tap anywhere on the canvas to drop points. Drag them to reshape the ribbon. We’ll translate it into{' '}
+          <code>M</code> and <code>L</code> commands automatically.
+        </p>
+      </div>
+
+      <div className="builder-canvas">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+          width="100%"
+          height="100%"
+          onPointerDown={handleSvgClick}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          aria-label="Interactive SVG path builder canvas"
+        >
+          <defs>
+            <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(148,163,184,0.15)" strokeWidth="1" />
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width={VIEWBOX_WIDTH} height={VIEWBOX_HEIGHT} fill="url(#grid)" />
+          {pathD ? (
+            <path
+              d={pathD}
+              fill="none"
+              stroke="rgba(56,189,248,0.85)"
+              strokeWidth={4}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+          {points.map((point) => (
+            <g key={point.id}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={12}
+                fill="rgba(30, 64, 175, 0.55)"
+                stroke="rgba(56, 189, 248, 0.8)"
+                strokeWidth={2}
+                onPointerDown={(event) => handlePointerDown(point, event)}
+                role="presentation"
+              />
+              <text
+                x={point.x + 16}
+                y={point.y - 16}
+                fill="rgba(226, 232, 240, 0.85)"
+                fontSize="20"
+                fontFamily="JetBrains Mono, ui-monospace"
+              >
+                ({point.x.toFixed(0)}, {point.y.toFixed(0)})
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      <div className="builder-path">
+        <div className="builder-path-header">
+          <span className="builder-path-title">Generated path</span>
+          <div className="builder-path-actions">
+            <button type="button" className="ghost-button" onClick={handleUndo} disabled={points.length === 0}>
+              Undo point
+            </button>
+            <button type="button" className="ghost-button" onClick={handleClear} disabled={points.length === 0}>
+              Clear all
+            </button>
+          </div>
+        </div>
+
+        <pre className="builder-path-output">{pathD || 'Add a point to get started.'}</pre>
+
+        <div className="builder-buttons">
+          <button type="button" className="cta secondary" onClick={handleApply} disabled={!pathD}>
+            Apply to piano
+          </button>
+          <button type="button" className="ghost-button" onClick={handleCopy} disabled={!pathD}>
+            {copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Copy failed' : 'Copy path'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -215,7 +215,7 @@ input[type='range'] {
 
 .workshop {
   display: grid;
-  gap: clamp(1.25rem, 3vw, 2rem);
+  gap: clamp(1.5rem, 3vw, 2.25rem);
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 1.5rem;
@@ -317,6 +317,88 @@ input[type='range'] {
   margin: 0;
 }
 
+.builder {
+  display: grid;
+  gap: 1.2rem;
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 1.4rem;
+  padding: clamp(1rem, 2.5vw, 1.6rem);
+}
+
+.builder-heading {
+  margin: 0 0 0.3rem;
+  font-size: 1.25rem;
+}
+
+.builder-blurb {
+  margin: 0;
+  color: #cbd5f5;
+  line-height: 1.55;
+}
+
+.builder-canvas {
+  position: relative;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.9);
+  min-height: 220px;
+}
+
+.builder-canvas svg {
+  display: block;
+}
+
+.builder-path {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.builder-path-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.builder-path-title {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.builder-path-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.builder-path-output {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.9rem;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.builder-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.builder-buttons .cta.secondary,
+.builder-buttons .ghost-button {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
@@ -327,6 +409,12 @@ input[type='range'] {
   }
 
   .custom-path-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .builder-path-actions,
+  .builder-buttons {
     flex-direction: column;
     align-items: stretch;
   }
