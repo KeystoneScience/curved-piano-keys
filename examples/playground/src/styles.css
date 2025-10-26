@@ -350,6 +350,27 @@ input[type='range'] {
   display: block;
 }
 
+.builder-tension {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.builder-tension label {
+  font-weight: 600;
+  color: #e2e8f0;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.builder-tension input[type='range'] {
+  flex: 1 1 200px;
+  accent-color: #38bdf8;
+}
+
 .builder-path {
   display: grid;
   gap: 0.75rem;
@@ -417,6 +438,12 @@ input[type='range'] {
   .builder-buttons {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .builder-tension {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
   }
 }
 

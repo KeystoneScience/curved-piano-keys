@@ -319,6 +319,7 @@ function PathBuilder({ onApply }: PathBuilderProps) {
     { id: 2, x: 600, y: 160 },
     { id: 3, x: 1100, y: 260 },
   ]);
+  const [tension, setTension] = useState<number>(0.85);
   const [dragging, setDragging] = useState<{
     id: number;
     offsetX: number;
@@ -327,16 +328,7 @@ function PathBuilder({ onApply }: PathBuilderProps) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  const pathD = useMemo(() => {
-    if (points.length === 0) {
-      return '';
-    }
-    const [first, ...rest] = points;
-    return rest.reduce(
-      (acc, point) => `${acc} L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`,
-      `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`,
-    );
-  }, [points]);
+  const pathD = useMemo(() => buildSmoothPath(points, tension), [points, tension]);
 
   const handleSvgClick = (event: PointerEvent<SVGSVGElement>) => {
     if (dragging) {
@@ -437,8 +429,8 @@ function PathBuilder({ onApply }: PathBuilderProps) {
       <div>
         <h3 className="builder-heading">Quick path builder</h3>
         <p className="builder-blurb">
-          Tap anywhere on the canvas to drop points. Drag them to reshape the ribbon. We’ll translate it into{' '}
-          <code>M</code> and <code>L</code> commands automatically.
+          Tap anywhere on the canvas to drop points. Drag them to reshape the ribbon. We translate them into a smooth
+          chain of <code>M</code> and <code>C</code> commands automatically, just like the Pen tool.
         </p>
       </div>
 
@@ -494,6 +486,21 @@ function PathBuilder({ onApply }: PathBuilderProps) {
         </svg>
       </div>
 
+      <div className="builder-tension">
+        <label htmlFor="tension">
+          Curve tension <span>{Math.round(tension * 100)}%</span>
+        </label>
+        <input
+          id="tension"
+          type="range"
+          min={0.2}
+          max={1}
+          step={0.05}
+          value={tension}
+          onChange={(event) => setTension(Number(event.target.value))}
+        />
+      </div>
+
       <div className="builder-path">
         <div className="builder-path-header">
           <span className="builder-path-title">Generated path</span>
@@ -520,4 +527,40 @@ function PathBuilder({ onApply }: PathBuilderProps) {
       </div>
     </div>
   );
+}
+
+function buildSmoothPath(points: BuilderPoint[], tension: number) {
+  if (points.length === 0) {
+    return '';
+  }
+  if (points.length === 1) {
+    const [first] = points;
+    return `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`;
+  }
+  if (points.length === 2) {
+    const [first, second] = points;
+    return `M ${first.x.toFixed(1)} ${first.y.toFixed(1)} L ${second.x.toFixed(1)} ${second.y.toFixed(1)}`;
+  }
+
+  const segments: string[] = [];
+  const clampIndex = (index: number) => Math.max(0, Math.min(points.length - 1, index));
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const p0 = points[clampIndex(index - 1)];
+    const p1 = points[index];
+    const p2 = points[index + 1];
+    const p3 = points[clampIndex(index + 2)];
+
+    const cp1x = p1.x + ((p2.x - p0.x) * tension) / 6;
+    const cp1y = p1.y + ((p2.y - p0.y) * tension) / 6;
+    const cp2x = p2.x - ((p3.x - p1.x) * tension) / 6;
+    const cp2y = p2.y - ((p3.y - p1.y) * tension) / 6;
+
+    segments.push(
+      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`,
+    );
+  }
+
+  const start = points[0];
+  return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} ${segments.join(' ')}`;
 }
