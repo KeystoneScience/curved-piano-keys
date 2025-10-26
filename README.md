@@ -80,11 +80,8 @@ npm install --prefix examples/playground
 npm run demo:dev
 ```
 
-When deployed to GitHub Pages via the included workflow, it will be available at:
 
-```
-https://keystonescience.github.io/curved-piano-keys/
-```
+Live playground: https://keystonescience.github.io/curved-piano-keys/
 
 ## Development
 
