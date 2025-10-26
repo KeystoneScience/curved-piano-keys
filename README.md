@@ -1,0 +1,71 @@
+# Piano Keys React Component
+
+`@nate-stone/piano-keys` renders a full piano keyboard that hugs any SVG path. It is a lightweight React component extracted from Nate Stone's portfolio site so the curved keyboard can be reused in other projects.
+
+## Features
+
+- Map 88-key style keyboards (or any length) onto arbitrary SVG path data.
+- Fine-grained control over ribbon thickness, black key geometry, and starting note.
+- Optional viewBox fitting so the SVG crops itself to the rendered keys.
+- Ships Bezier path presets to help you prototype layouts quickly.
+
+## Installation
+
+```bash
+npm install @nate-stone/piano-keys
+```
+
+> The package expects `react@^18` as a peer dependency.
+
+## Usage
+
+```tsx
+import { CurvedPianoKeys, PIANO_PATH_PRESETS } from "@nate-stone/piano-keys";
+
+export function Hero() {
+  return (
+    <CurvedPianoKeys
+      d={PIANO_PATH_PRESETS[0].d}
+      numWhiteKeys={52}
+      thickness={84}
+      startOn="A"
+      showPath
+    />
+  );
+}
+```
+
+Key props:
+
+- `d` *(required)* – SVG path data string.
+- `numWhiteKeys` *(default 52)* – total white keys rendered along the path.
+- `thickness` *(default 80)* – ribbon thickness in px.
+- `startOn` *(default "A")* – choose `"A"` or `"C"` to align the black key cadence.
+- `blackWidthRatio` & `blackDepth` – tweak black key footprint relative to white keys.
+- `orientation` *(default `1`)* – set to `-1` to flip the keyboard beneath the guide path.
+- `fitViewBox` *(default `true`)* – disable if you want to provide your own `viewBox`.
+
+All props are optional except `d`. Full doc comments live in `src/CurvedPianoKeys.tsx`.
+
+> The geometry is calculated with DOM APIs, so the component must render in a browser environment (e.g. a Next.js Client Component).
+
+### Path presets
+
+```ts
+import { PIANO_PATH_PRESETS } from "@nate-stone/piano-keys/path-presets";
+```
+
+Each preset includes `id`, `name`, `description`, and the `d` attribute for quick demos.
+
+## Development
+
+```bash
+npm install
+npm run build
+```
+
+The build uses `tsup` to output both CJS and ESM bundles in `dist/`.
+
+## License
+
+MIT © Nate Stone
