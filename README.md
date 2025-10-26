@@ -11,6 +11,10 @@
   Made with ❤️ by <a href="https://keystonescience.com" target="_blank" rel="noopener noreferrer"><strong>Nate Stone</strong></a>
 </p>
 
+<p align="center">
+  <img src="./assets/curved-keys-hero.png" alt="Curved piano keyboard hero" width="1000" />
+</p>
+
 # Piano Keys React Component
 
 `curved-piano-keys` renders a full piano keyboard that hugs any SVG path. It started as a portfolio experiment and is now packaged for anyone to drop into their own projects.
