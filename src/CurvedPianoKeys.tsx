@@ -83,7 +83,7 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 
 const DEFAULTS = {
   numWhiteKeys: 52,
-  whiteKeyDensity: 'auto' as const,
+  whiteKeyDensity: 'md' as const,
   startOn: 'A' as const,
   thickness: 80,
   blackWidthRatio: 0.62,
@@ -130,34 +130,17 @@ const BLACK_FRACTIONS: Record<string, number | null> = {
 };
 
 type WhiteKeyDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-export type WhiteKeyDensitySetting = WhiteKeyDensity | 'auto';
+export type WhiteKeyDensitySetting = WhiteKeyDensity;
 
-const WHITE_KEY_DENSITY_VALUES: Record<WhiteKeyDensity, number> = {
-  xs: 28,
-  sm: 36,
-  md: 44,
-  lg: 52,
-  xl: 60,
+export const WHITE_KEY_DENSITY_SPANS: Record<WhiteKeyDensity, number> = {
+  xs: 40,
+  sm: 50,
+  md: 60,
+  lg: 72,
+  xl: 86,
 };
 
-const DENSITY_BREAKPOINTS: Array<{ maxWidth: number; density: WhiteKeyDensity }> = [
-  { maxWidth: 520, density: 'xs' },
-  { maxWidth: 768, density: 'sm' },
-  { maxWidth: 1024, density: 'md' },
-  { maxWidth: 1366, density: 'lg' },
-  { maxWidth: Number.POSITIVE_INFINITY, density: 'xl' },
-];
-
-const DEFAULT_VIEWPORT_WIDTH = 1024;
-
-function chooseDensity(width: number, setting: WhiteKeyDensitySetting): WhiteKeyDensity {
-  if (setting !== 'auto') {
-    return setting;
-  }
-  const resolvedWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_VIEWPORT_WIDTH;
-  const match = DENSITY_BREAKPOINTS.find((entry) => resolvedWidth <= entry.maxWidth);
-  return match?.density ?? 'xl';
-}
+const MIN_WHITE_KEYS = 12;
 
 function geoAt(path: SVGPathElement, s: number) {
   const total = path.getTotalLength();
@@ -237,17 +220,12 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
     pathProps,
   } = props;
 
-  const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
-
-  const densityRef = useRef<WhiteKeyDensity>(chooseDensity(DEFAULT_VIEWPORT_WIDTH, whiteKeyDensity));
-  const [autoWhiteKeys, setAutoWhiteKeys] = useState<number>(() => WHITE_KEY_DENSITY_VALUES[densityRef.current]);
   const [whiteQuads, setWhiteQuads] = useState<Quad[]>([]);
   const [blackQuads, setBlackQuads] = useState<Quad[]>([]);
   const [viewBox, setViewBox] = useState<string>(DEFAULTS.initialViewBox);
 
   const { className: svgClassName, viewBox: svgViewBox, ...restSvgProps } = svgProps ?? {};
-  const effectiveWhiteKeys = numWhiteKeys ?? autoWhiteKeys;
 
   useEffect(() => {
     if (svgViewBox) {
@@ -255,70 +233,25 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
     }
   }, [svgViewBox]);
 
-  useEffect(() => {
-    if (numWhiteKeys != null) {
-      return;
-    }
-
-    if (whiteKeyDensity !== 'auto') {
-      densityRef.current = whiteKeyDensity;
-      const nextKeys = WHITE_KEY_DENSITY_VALUES[whiteKeyDensity];
-      setAutoWhiteKeys((previous) => (previous === nextKeys ? previous : nextKeys));
-      return;
-    }
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const svg = svgRef.current;
-
-    const updateFromWidth = (width: number) => {
-      const nextDensity = chooseDensity(width, 'auto');
-      if (densityRef.current === nextDensity) {
-        return;
-      }
-      densityRef.current = nextDensity;
-      const nextKeys = WHITE_KEY_DENSITY_VALUES[nextDensity];
-      setAutoWhiteKeys((previous) => (previous === nextKeys ? previous : nextKeys));
-    };
-
-    const measure = () => {
-      const width = svg?.getBoundingClientRect().width ?? window.innerWidth ?? DEFAULT_VIEWPORT_WIDTH;
-      updateFromWidth(width);
-    };
-
-    measure();
-
-    let resizeObserver: ResizeObserver | null = null;
-    if (svg && typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const width = entry.contentRect?.width ?? entry.target.getBoundingClientRect().width;
-          if (Number.isFinite(width)) {
-            updateFromWidth(width);
-          }
-        }
-      });
-      resizeObserver.observe(svg);
-    }
-
-    window.addEventListener('resize', measure, { passive: true });
-
-    return () => {
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [whiteKeyDensity, numWhiteKeys]);
-
   useIsomorphicLayoutEffect(() => {
     const path = pathRef.current;
     if (!path) {
       return;
     }
 
-    const whiteCount = Math.max(1, Math.floor(effectiveWhiteKeys));
     const totalLength = path.getTotalLength();
+
+    const targetSpan = WHITE_KEY_DENSITY_SPANS[whiteKeyDensity] ?? WHITE_KEY_DENSITY_SPANS[DEFAULTS.whiteKeyDensity];
+
+    let whiteCount: number;
+    if (numWhiteKeys != null) {
+      whiteCount = Math.max(1, Math.floor(numWhiteKeys));
+    } else if (whiteKeySpan && whiteKeySpan > 0) {
+      whiteCount = Math.max(1, Math.round(totalLength / whiteKeySpan));
+    } else {
+      whiteCount = Math.max(MIN_WHITE_KEYS, Math.round(totalLength / targetSpan));
+    }
+
     const span = whiteKeySpan && whiteKeySpan > 0 ? whiteKeySpan : totalLength / whiteCount;
 
     const boundaries: number[] = [];
@@ -404,7 +337,8 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
     setBlackQuads(blacks);
   }, [
     d,
-    effectiveWhiteKeys,
+    numWhiteKeys,
+    whiteKeyDensity,
     startOn,
     thickness,
     whiteKeySpan,
@@ -465,7 +399,6 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
 
   return (
     <svg
-      ref={svgRef}
       className={mergedSvgClassName}
       viewBox={viewBox}
       width="100%"

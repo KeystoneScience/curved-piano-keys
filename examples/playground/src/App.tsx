@@ -7,7 +7,11 @@ import {
   useState,
 } from 'react';
 
-import { CurvedPianoKeys, PIANO_PATH_PRESETS } from 'curved-piano-keys';
+import {
+  CurvedPianoKeys,
+  PIANO_PATH_PRESETS,
+  WHITE_KEY_DENSITY_SPANS,
+} from 'curved-piano-keys';
 
 type PathPresetId = (typeof PIANO_PATH_PRESETS)[number]['id'];
 
@@ -15,26 +19,8 @@ const WHITE_KEY_MIN = 12;
 const WHITE_KEY_INCREMENT = 12;
 
 type ResponsiveDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-type DensitySetting = ResponsiveDensity | 'auto';
 
-const WHITE_KEY_DENSITY_VALUES: Record<ResponsiveDensity, number> = {
-  xs: 28,
-  sm: 36,
-  md: 44,
-  lg: 52,
-  xl: 60,
-};
-
-const DENSITY_BREAKPOINTS: Array<{ maxWidth: number; density: ResponsiveDensity }> = [
-  { maxWidth: 520, density: 'xs' },
-  { maxWidth: 768, density: 'sm' },
-  { maxWidth: 1024, density: 'md' },
-  { maxWidth: 1366, density: 'lg' },
-  { maxWidth: Number.POSITIVE_INFINITY, density: 'xl' },
-];
-
-const DENSITY_LABELS: Record<DensitySetting, string> = {
-  auto: 'Responsive',
+const DENSITY_LABELS: Record<ResponsiveDensity, string> = {
   xs: 'XS',
   sm: 'SM',
   md: 'MD',
@@ -42,13 +28,7 @@ const DENSITY_LABELS: Record<DensitySetting, string> = {
   xl: 'XL',
 };
 
-const DEFAULT_PREVIEW_WIDTH = 1024;
-
-function densityForWidth(width: number): ResponsiveDensity {
-  const resolvedWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_PREVIEW_WIDTH;
-  const match = DENSITY_BREAKPOINTS.find((entry) => resolvedWidth <= entry.maxWidth);
-  return match?.density ?? 'xl';
-}
+const WHITE_KEY_MIN_COUNT = 12;
 
 export function App() {
   const [presetId, setPresetId] = useState<PathPresetId>(PIANO_PATH_PRESETS[0].id);
@@ -61,19 +41,24 @@ export function App() {
   const [showPath, setShowPath] = useState(false);
   const [orientation, setOrientation] = useState<1 | -1>(1);
   const [useManualKeys, setUseManualKeys] = useState(false);
-  const [densitySetting, setDensitySetting] = useState<DensitySetting>('auto');
-  const [autoWhiteKeys, setAutoWhiteKeys] = useState(() => WHITE_KEY_DENSITY_VALUES['md']);
-  const densityRef = useRef<ResponsiveDensity>('md');
-  const [activeDensity, setActiveDensity] = useState<ResponsiveDensity>('md');
-  const previewRef = useRef<HTMLDivElement | null>(null);
+  const [densitySetting, setDensitySetting] = useState<ResponsiveDensity>('md');
+  const [pathLength, setPathLength] = useState<number>(0);
   const [pathSource, setPathSource] = useState<'preset' | 'custom'>('preset');
   const [customPath, setCustomPath] = useState<string>('');
   const [customError, setCustomError] = useState<string | null>(null);
   const [copySnippetState, setCopySnippetState] = useState<'idle' | 'copied' | 'error'>('idle');
 
-  const densityOptions: DensitySetting[] = ['auto', 'xs', 'sm', 'md', 'lg', 'xl'];
+  const densityOptions: ResponsiveDensity[] = ['xs', 'sm', 'md', 'lg', 'xl'];
 
-  const effectiveWhiteKeys = useManualKeys ? numWhiteKeys : autoWhiteKeys;
+  const densityWhiteKeys = useMemo(() => {
+    const span = WHITE_KEY_DENSITY_SPANS[densitySetting] ?? WHITE_KEY_DENSITY_SPANS.md;
+    if (!span || pathLength <= 0) {
+      return WHITE_KEY_MIN_COUNT;
+    }
+    return Math.max(WHITE_KEY_MIN_COUNT, Math.round(pathLength / span));
+  }, [densitySetting, pathLength]);
+
+  const effectiveWhiteKeys = useManualKeys ? numWhiteKeys : densityWhiteKeys;
   const computedSliderMax = useManualKeys ? whiteKeySliderMax : Math.max(whiteKeySliderMax, effectiveWhiteKeys);
   const whiteKeySliderValue = useManualKeys ? numWhiteKeys : effectiveWhiteKeys;
 
@@ -86,60 +71,40 @@ export function App() {
 
   const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
-  useEffect(() => {
-    if (useManualKeys) {
-      return;
-    }
+useEffect(() => {
+  if (typeof window === 'undefined') {
+    return;
+  }
 
-    if (densitySetting !== 'auto') {
-      densityRef.current = densitySetting;
-      setActiveDensity(densitySetting);
-      setAutoWhiteKeys(WHITE_KEY_DENSITY_VALUES[densitySetting]);
-      return;
-    }
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.style.position = 'absolute';
+  svg.style.visibility = 'hidden';
 
-    const updateFromWidth = (width?: number) => {
-      const measuredWidth =
-        width ??
-        previewRef.current?.getBoundingClientRect().width ??
-        window.innerWidth ??
-        DEFAULT_PREVIEW_WIDTH;
-      const density = densityForWidth(measuredWidth);
-      densityRef.current = density;
-      setActiveDensity(density);
-      const nextKeys = WHITE_KEY_DENSITY_VALUES[density];
-      setAutoWhiteKeys((previous) => (previous === nextKeys ? previous : nextKeys));
-    };
+  const pathElement = document.createElementNS(svgNS, 'path');
+  pathElement.setAttribute('d', currentPath);
+  svg.appendChild(pathElement);
+  document.body.appendChild(svg);
 
-    updateFromWidth();
+  try {
+    const length = pathElement.getTotalLength();
+    setPathLength(length);
+  } catch (error) {
+    console.warn('Failed to measure path length', error);
+  } finally {
+    document.body.removeChild(svg);
+  }
+}, [currentPath]);
 
-    const handleResize = () => updateFromWidth();
-    window.addEventListener('resize', handleResize, { passive: true });
-
-    let observer: ResizeObserver | null = null;
-    if (previewRef.current && typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const width = entry.contentRect?.width ?? entry.target.getBoundingClientRect().width;
-          if (Number.isFinite(width)) {
-            updateFromWidth(width);
-          }
-        }
-      });
-      observer.observe(previewRef.current);
-    }
-
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [useManualKeys, densitySetting]);
-
-  useEffect(() => {
-    if (!useManualKeys) {
-      setWhiteKeySliderMax((previous) => (autoWhiteKeys > previous ? autoWhiteKeys : previous));
-    }
-  }, [autoWhiteKeys, useManualKeys]);
+useEffect(() => {
+  if (!useManualKeys) {
+    setWhiteKeySliderMax((previous) =>
+      densityWhiteKeys > previous ? densityWhiteKeys : previous,
+    );
+  }
+}, [densityWhiteKeys, useManualKeys]);
 
   const componentSnippet = useMemo(() => {
     const escapeDoubleQuotes = (value: string) => value.replace(/"/g, '\\"');
@@ -247,7 +212,7 @@ export function App() {
             <span className="badge">{effectiveWhiteKeys} white keys</span>
           </div>
 
-          <div className="preview-canvas" ref={previewRef}>
+          <div className="preview-canvas">
             <CurvedPianoKeys
               d={currentPath}
               thickness={thickness}
@@ -320,16 +285,16 @@ export function App() {
                 className={useManualKeys ? 'segment-button' : 'segment-button active'}
                 onClick={() => setUseManualKeys(false)}
               >
-                Auto
+                Presets
               </button>
               <button
                 type="button"
                 className={useManualKeys ? 'segment-button active' : 'segment-button'}
                 onClick={() => {
                   setUseManualKeys(true);
-                  setNumWhiteKeys(autoWhiteKeys);
+                  setNumWhiteKeys(densityWhiteKeys);
                   setWhiteKeySliderMax((previous) =>
-                    autoWhiteKeys > previous ? autoWhiteKeys : previous,
+                    densityWhiteKeys > previous ? densityWhiteKeys : previous,
                   );
                 }}
               >
@@ -354,9 +319,7 @@ export function App() {
                   ))}
                 </div>
                 <p className="control-hint">
-                  {densitySetting === 'auto'
-                    ? `Responsive: ${activeDensity.toUpperCase()} density (${autoWhiteKeys} white keys)`
-                    : `${DENSITY_LABELS[densitySetting]} density (${autoWhiteKeys} white keys)`}
+                  {`${DENSITY_LABELS[densitySetting]} density (~${densityWhiteKeys} white keys)`}
                 </p>
               </>
             ) : (
