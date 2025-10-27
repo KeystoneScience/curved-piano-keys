@@ -55,7 +55,7 @@ export function Hero() {
 | --- | --- | --- | --- |
 | `d` | `string` | **required** | SVG path data to follow (e.g. `"M 40 240 C ..."`). |
 | `numWhiteKeys` | `number` | `52` | Total white keys rendered along the path. Ignored when `whiteKeyDensity` is set. |
-| `whiteKeyDensity` | `'auto' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'auto'` | Responsive presets that pick the white-key count from tuned breakpoints (ignored when `numWhiteKeys` is supplied). |
+| `whiteKeyDensity` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Responsive presets that use fixed target spans (~10/12.5/15/18/21.5px) to tile the path end-to-end (ignored when `numWhiteKeys` is supplied). |
 | `thickness` | `number` | `80` | Ribbon thickness in px measured normal to the path. |
 | `whiteKeySpan` | `number` | `undefined` | Override the calculated span if you need fixed key widths. |
 | `startOn` | `'A' \\| 'C'` | `'A'` | Controls the black-key cadence, matching a real keyboard (`'A'`) or visually centred (`'C'`). |
@@ -68,7 +68,7 @@ export function Hero() {
 
 All props are optional except `d`. Full JSDoc lives in [`src/CurvedPianoKeys.tsx`](src/CurvedPianoKeys.tsx).
 
-> **Tip:** Supply `numWhiteKeys` for an exact key count, or let the defaults pick a responsive density via `whiteKeyDensity="auto"`.
+> **Tip:** Supply `numWhiteKeys` for an exact key count, or lean on the density presets (`whiteKeyDensity="xs"` → `"xl"`) for responsive spans.
 
 > The geometry is calculated with DOM APIs, so the component must render in a browser environment (e.g. a Next.js Client Component).
 

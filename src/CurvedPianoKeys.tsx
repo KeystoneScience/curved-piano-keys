@@ -133,11 +133,11 @@ type WhiteKeyDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type WhiteKeyDensitySetting = WhiteKeyDensity;
 
 export const WHITE_KEY_DENSITY_SPANS: Record<WhiteKeyDensity, number> = {
-  xs: 40,
-  sm: 50,
-  md: 60,
-  lg: 72,
-  xl: 86,
+  xs: 10,
+  sm: 12.5,
+  md: 15,
+  lg: 18,
+  xl: 21.5,
 };
 
 const MIN_WHITE_KEYS = 12;
