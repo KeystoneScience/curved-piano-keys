@@ -5,6 +5,8 @@ export type PianoPathPreset = {
   d: string;
 };
 
+export type PianoPathPresetId = PianoPathPreset['id'];
+
 export const PIANO_PATH_PRESETS: PianoPathPreset[] = [
   {
     id: 's-curve',

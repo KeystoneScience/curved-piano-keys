@@ -10,16 +10,21 @@ import {
 
 import type { SVGAttributes, SVGProps } from 'react';
 
+import { PIANO_PATH_PRESETS, type PianoPathPresetId } from './pathPresets';
+
 export type CurvedPianoKeysProps = {
   /** SVG path data (e.g. "M 20 120 C 200 -40 360 280 540 120"). */
-  d: string;
+  d?: string;
+
+  /** Use a built-in preset by id (see `PIANO_PATH_PRESETS`). */
+  pathPreset?: PianoPathPresetId;
 
   /** Number of white keys to render. Overrides `whiteKeyDensity` when provided. */
   numWhiteKeys?: number;
 
   /**
-   * Responsive density preset for automatically choosing the white-key count.
-   * Ignored when `numWhiteKeys` is provided.
+   * Density preset used to derive the white-key span. Ignored when `numWhiteKeys`
+   * or `whiteKeySpan` is provided.
    */
   whiteKeyDensity?: WhiteKeyDensitySetting;
 
@@ -96,6 +101,7 @@ const DEFAULTS = {
   orientation: 1 as const,
   fitViewBox: true,
   initialViewBox: '0 0 1200 400',
+  defaultPath: PIANO_PATH_PRESETS[0]?.d ?? 'M 40 240 L 1040 240',
 } satisfies Required<
   Pick<
     CurvedPianoKeysProps,
@@ -113,7 +119,7 @@ const DEFAULTS = {
     | 'orientation'
     | 'fitViewBox'
   >
-> & { initialViewBox: string };
+> & { initialViewBox: string; defaultPath: string };
 
 const NOTE_ORDER_A = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
 const NOTE_ORDER_C = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
@@ -141,6 +147,10 @@ export const WHITE_KEY_DENSITY_SPANS: Record<WhiteKeyDensity, number> = {
 };
 
 const MIN_WHITE_KEYS = 12;
+
+const PRESET_PATHS = new Map<string, string>(
+  PIANO_PATH_PRESETS.map((preset) => [preset.id, preset.d]),
+);
 
 function geoAt(path: SVGPathElement, s: number) {
   const total = path.getTotalLength();
@@ -199,6 +209,7 @@ function makeQuadFromEdge(
 export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
   const {
     d,
+    pathPreset,
     numWhiteKeys,
     whiteKeyDensity = DEFAULTS.whiteKeyDensity,
     startOn = DEFAULTS.startOn,
@@ -226,6 +237,20 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
   const [viewBox, setViewBox] = useState<string>(DEFAULTS.initialViewBox);
 
   const { className: svgClassName, viewBox: svgViewBox, ...restSvgProps } = svgProps ?? {};
+
+  const resolvedPath = useMemo(() => {
+    if (d && d.trim()) {
+      return d;
+    }
+    if (pathPreset) {
+      const presetPath = PRESET_PATHS.get(pathPreset);
+      if (presetPath) {
+        return presetPath;
+      }
+      console.warn(`curved-piano-keys: pathPreset "${pathPreset}" was not found. Falling back to default.`);
+    }
+    return DEFAULTS.defaultPath;
+  }, [d, pathPreset]);
 
   useEffect(() => {
     if (svgViewBox) {
@@ -336,7 +361,7 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
     setWhiteQuads(whites);
     setBlackQuads(blacks);
   }, [
-    d,
+    resolvedPath,
     numWhiteKeys,
     whiteKeyDensity,
     startOn,
@@ -406,7 +431,7 @@ export function CurvedPianoKeys(props: CurvedPianoKeysProps) {
       aria-label="Curved piano keyboard"
       {...restSvgProps}
     >
-      <path ref={pathRef} d={d} {...resolvedPathProps} />
+      <path ref={pathRef} d={resolvedPath} {...resolvedPathProps} />
       <g>{whitePolygons}</g>
       <g>{blackPolygons}</g>
     </svg>

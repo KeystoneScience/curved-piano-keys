@@ -50,7 +50,7 @@ export function App() {
 
   const densityOptions: ResponsiveDensity[] = ['xs', 'sm', 'md', 'lg', 'xl'];
 
-  const densityWhiteKeys = useMemo(() => {
+const densityWhiteKeys = useMemo(() => {
     const span = WHITE_KEY_DENSITY_SPANS[densitySetting] ?? WHITE_KEY_DENSITY_SPANS.md;
     if (!span || pathLength <= 0) {
       return WHITE_KEY_MIN_COUNT;
@@ -62,49 +62,49 @@ export function App() {
   const computedSliderMax = useManualKeys ? whiteKeySliderMax : Math.max(whiteKeySliderMax, effectiveWhiteKeys);
   const whiteKeySliderValue = useManualKeys ? numWhiteKeys : effectiveWhiteKeys;
 
-  const selectedPreset = useMemo(
+const selectedPreset = useMemo(
     () => PIANO_PATH_PRESETS.find((preset) => preset.id === presetId) ?? PIANO_PATH_PRESETS[0],
     [presetId],
   );
 
-  const currentPath = pathSource === 'custom' && customPath.trim() ? customPath : selectedPreset.d;
+const currentPath = pathSource === 'custom' && customPath.trim() ? customPath : selectedPreset.d;
 
-  const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
-useEffect(() => {
-  if (typeof window === 'undefined') {
-    return;
-  }
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
 
-  const svgNS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(svgNS, 'svg');
-  svg.setAttribute('width', '0');
-  svg.setAttribute('height', '0');
-  svg.style.position = 'absolute';
-  svg.style.visibility = 'hidden';
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    svg.style.visibility = 'hidden';
 
-  const pathElement = document.createElementNS(svgNS, 'path');
-  pathElement.setAttribute('d', currentPath);
-  svg.appendChild(pathElement);
-  document.body.appendChild(svg);
+    const pathElement = document.createElementNS(svgNS, 'path');
+    pathElement.setAttribute('d', currentPath);
+    svg.appendChild(pathElement);
+    document.body.appendChild(svg);
 
-  try {
-    const length = pathElement.getTotalLength();
-    setPathLength(length);
-  } catch (error) {
-    console.warn('Failed to measure path length', error);
-  } finally {
-    document.body.removeChild(svg);
-  }
-}, [currentPath]);
+    try {
+      const length = pathElement.getTotalLength();
+      setPathLength(length);
+    } catch (error) {
+      console.warn('Failed to measure path length', error);
+    } finally {
+      document.body.removeChild(svg);
+    }
+  }, [currentPath]);
 
-useEffect(() => {
-  if (!useManualKeys) {
-    setWhiteKeySliderMax((previous) =>
-      densityWhiteKeys > previous ? densityWhiteKeys : previous,
-    );
-  }
-}, [densityWhiteKeys, useManualKeys]);
+  useEffect(() => {
+    if (!useManualKeys) {
+      setWhiteKeySliderMax((previous) =>
+        densityWhiteKeys > previous ? densityWhiteKeys : previous,
+      );
+    }
+  }, [densityWhiteKeys, useManualKeys]);
 
   const componentSnippet = useMemo(() => {
     const escapeDoubleQuotes = (value: string) => value.replace(/"/g, '\\"');
@@ -112,9 +112,15 @@ useEffect(() => {
       `import { CurvedPianoKeys } from "curved-piano-keys";`,
       '',
       '<CurvedPianoKeys',
-      `  d="${escapeDoubleQuotes(currentPath)}"`,
-      `  thickness={${thickness}}`,
     ];
+
+    if (pathSource === 'preset') {
+      lines.push(`  pathPreset="${presetId}"`);
+    } else {
+      lines.push(`  d="${escapeDoubleQuotes(currentPath)}"`);
+    }
+
+    lines.push(`  thickness={${thickness}}`);
 
     if (useManualKeys) {
       lines.push(`  numWhiteKeys={${numWhiteKeys}}`);
@@ -138,6 +144,8 @@ useEffect(() => {
     return lines.join('\n');
   }, [
     currentPath,
+    presetId,
+    pathSource,
     thickness,
     numWhiteKeys,
     densitySetting,
@@ -214,7 +222,7 @@ useEffect(() => {
 
           <div className="preview-canvas">
             <CurvedPianoKeys
-              d={currentPath}
+              {...(pathSource === 'preset' ? { pathPreset: presetId } : { d: currentPath })}
               thickness={thickness}
               {...(useManualKeys ? { numWhiteKeys } : { whiteKeyDensity: densitySetting })}
               startOn={startOn}

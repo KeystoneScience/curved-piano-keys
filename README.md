@@ -22,7 +22,7 @@
 - Optional viewBox fitting so the SVG crops itself to the rendered keys.
 - Ships Bézier path presets to help you prototype layouts quickly.
 - Interactive playground with a pen-style path builder, live prop controls, and a one-click copyable component snippet.
-- Responsive density presets that auto-select smart key counts from phones to ultrawide displays.
+- Responsive density presets that tile the path with consistent key widths from phones to ultrawide displays.
 
 ## Installation
 
@@ -35,14 +35,14 @@ npm install curved-piano-keys
 ## Usage
 
 ```tsx
-import { CurvedPianoKeys, PIANO_PATH_PRESETS } from "curved-piano-keys";
+import { CurvedPianoKeys } from "curved-piano-keys";
 
 export function Hero() {
   return (
     <CurvedPianoKeys
-      d={PIANO_PATH_PRESETS[0].d}
+      pathPreset="wave"
       thickness={84}
-      startOn="A"
+      whiteKeyDensity="md"
       showPath
     />
   );
@@ -55,7 +55,8 @@ export function Hero() {
 | --- | --- | --- | --- |
 | `d` | `string` | **required** | SVG path data to follow (e.g. `"M 40 240 C ..."`). |
 | `numWhiteKeys` | `number` | `52` | Total white keys rendered along the path. Ignored when `whiteKeyDensity` is set. |
-| `whiteKeyDensity` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Responsive presets that use fixed target spans (~10/12.5/15/18/21.5px) to tile the path end-to-end (ignored when `numWhiteKeys` is supplied). |
+| `whiteKeyDensity` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Responsive presets that use fixed target spans (~10/12.5/15/18/21.5px) to tile the path end-to-end (ignored when `numWhiteKeys` / `whiteKeySpan` is supplied). |
+| `pathPreset` | see below | `undefined` | Use a built-in curve by id instead of supplying `d` manually. |
 | `thickness` | `number` | `80` | Ribbon thickness in px measured normal to the path. |
 | `whiteKeySpan` | `number` | `undefined` | Override the calculated span if you need fixed key widths. |
 | `startOn` | `'A' \\| 'C'` | `'A'` | Controls the black-key cadence, matching a real keyboard (`'A'`) or visually centred (`'C'`). |
@@ -75,12 +76,10 @@ All props are optional except `d`. Full JSDoc lives in [`src/CurvedPianoKeys.tsx
 ### Custom curve example
 
 ```tsx
-const ribbon = "M 40 240 C 240 120 420 360 640 220 S 980 300 1140 200";
-
 export function HeroBanner() {
   return (
     <CurvedPianoKeys
-      d={ribbon}
+      pathPreset="squiggle"
       thickness={96}
       whiteKeyDensity="lg"
       startOn="C"
@@ -94,13 +93,22 @@ export function HeroBanner() {
 }
 ```
 
-### Path presets
+### Built-in path presets
+
+| id | name | description |
+| --- | --- | --- |
+| `s-curve` | S Curve | Loose S-shaped Bezier with two smooth inflection points. |
+| `arc` | Wide Arc | Gentle upward arc, great for sweeping hero treatments. |
+| `squiggle` | Playful Squiggle | Alternating peaks and valleys for dramatic curvature. |
+| `straight` | Straight Line | Simple horizontal baseline for benchmarking spacing. |
+| `wave` | Offset Wave | Long wavelength sine-inspired path with asymmetrical peaks. |
+| `spiral` | Spiral Sweep | Expansive spiral arc for bold hero compositions. |
+
+Import the metadata if you’d like to list them in your UI:
 
 ```ts
 import { PIANO_PATH_PRESETS } from "curved-piano-keys/path-presets";
 ```
-
-Each preset includes `id`, `name`, `description`, and the `d` attribute for quick demos.
 
 ## Interactive Playground
 
